@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from config.settings import settings
 from src.download.queue import task_queue
+from src.routes import router
 
 logging.basicConfig(level=getattr(logging, settings.log_level.upper()))
 logger = logging.getLogger("quark-service")
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     logger.info("Quark service stopped")
 
 app = FastAPI(title="Quark Storage Service", version="0.1.0", lifespan=lifespan)
+app.include_router(router)
 
 @app.get("/health")
 async def health():
