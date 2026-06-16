@@ -1,0 +1,6 @@
+{
+  "botToken": "YOUR_BOT_TOKEN_HERE",
+  "accountId": "YOUR_ACCOUNT_ID@im.bot",
+  "baseUrl": "https://ilinkai.weixin.qq.com",
+  "quarkServiceUrl": "http://python-service:8000"
+}

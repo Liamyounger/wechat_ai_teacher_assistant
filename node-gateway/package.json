@@ -1,0 +1,14 @@
+{
+  "name": "wechat-quark-gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "setup": "node src/index.js setup",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
