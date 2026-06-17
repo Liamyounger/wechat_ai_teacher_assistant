@@ -151,7 +151,7 @@ function exceedsSizeLimit(sizeStr) {
     const num = parseFloat(match[1]);
     const unit = match[2].toUpperCase();
     if (unit === 'GB') return true;
-    if (unit === 'MB' && num >= 25) return true;
+    if (unit === 'MB' && num >= 200) return true;
     return false;
 }
 
@@ -162,15 +162,7 @@ async function handleDownload(userId, contextToken, session, quarkClient, sender
 
     if (exceedsSizeLimit(size)) {
         await sender.sendText(userId, contextToken,
-            `⚠️ 「${filename}」(${size}) 超过微信 25MB 限制，正在生成分享链接...`);
-        try {
-            const share = await quarkClient.createShareLink(fid, filename);
-            await sender.sendText(userId, contextToken,
-                `🔗 「${filename}」分享链接：\n${share.share_url}\n\n用夸克 App 打开即可下载。继续浏览：`);
-        } catch (err) {
-            logger.error('Share link creation failed', { error: err.message });
-            await sender.sendText(userId, contextToken, `分享链接生成失败: ${err.message}`);
-        }
+            `⚠️ 「${filename}」(${size}) 超过 200MB，不支持发送。`);
         await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
         return;
     }
