@@ -142,5 +142,40 @@ class QuarkClient:
             "filelist": filelist,
         })
 
+    def search_files(self, parent_fid: str, query: str, max_depth: int = 1) -> list[dict]:
+        """Search files by name recursively up to max_depth levels.
+        Returns list of {name, fid, size, path} dicts."""
+        results: list[dict] = []
+        self._search_recursive(parent_fid, query.lower(), "", max_depth, results)
+        return results
+
+    def _search_recursive(self, fid: str, query: str, path_prefix: str,
+                          depth: int, results: list[dict]):
+        page = 1
+        while True:
+            resp = self.list_folder(fid, page=page, size=200)
+            entries = resp.get("data", {}).get("list", [])
+            if not entries:
+                break
+            for e in entries:
+                name = e.get("file_name", "")
+                if query in name.lower():
+                    size = e.get("size", 0)
+                    results.append({
+                        "name": name,
+                        "fid": e.get("fid", ""),
+                        "size": f"{size / 1024 / 1024:.1f}MB" if size > 1024 * 1024
+                        else f"{size / 1024:.1f}KB",
+                        "path": f"{path_prefix}/{name}",
+                        "is_dir": bool(e.get("dir")),
+                    })
+                if e.get("dir") and depth > 0:
+                    sub_path = f"{path_prefix}/{name}"
+                    self._search_recursive(e["fid"], query, sub_path, depth - 1, results)
+            total = resp.get("data", {}).get("total", 0)
+            if total == 0 or page * 200 >= total:
+                break
+            page += 1
+
     def close(self):
         self.client.close()

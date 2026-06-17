@@ -24,6 +24,13 @@ export class QuarkServiceClient {
         return this.request(`/api/v1/folder?path=${encodeURIComponent(path)}`);
     }
 
+    /** GET /api/v1/search?q=keyword&path=/ */
+    async searchFiles(query, path = '/') {
+        return this.request(
+            `/api/v1/search?q=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}`
+        );
+    }
+
     /** POST /api/v1/download */
     async submitDownload(fileId, filename) {
         const url = `${this.baseUrl}/api/v1/download`;

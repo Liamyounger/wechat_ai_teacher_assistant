@@ -84,6 +84,11 @@ export function createHandler(sessionManager, quarkClient, sender) {
                 break;
             }
 
+            case 'search':
+                await handleSearch(userId, contextToken, route.query,
+                    session, quarkClient, sender);
+                break;
+
             case 'reset':
                 sessionManager.reset(userId);
                 await sender.sendText(userId, contextToken, '已重置。输入任意内容开始浏览：');
@@ -134,6 +139,38 @@ async function handleDownload(userId, contextToken, session, quarkClient, sender
 
     // Show menu again
     await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
+}
+
+async function handleSearch(userId, contextToken, query, session, quarkClient, sender) {
+    try {
+        await sender.sendText(userId, contextToken, `🔍 搜索: "${query}" ...`);
+        const data = await quarkClient.searchFiles(query, session.currentPath);
+        const results = data.results || [];
+
+        if (results.length === 0) {
+            await sender.sendText(userId, contextToken,
+                `未找到匹配 "${query}" 的文件\n\n输入内容继续浏览：`);
+            await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
+            return;
+        }
+
+        const lines = [];
+        lines.push(`🔍 "${query}" 找到 ${results.length} 个结果:`);
+        lines.push('───────────────');
+        results.forEach((r, i) => {
+            const icon = r.is_dir ? '📁' : '📄';
+            const suffix = !r.is_dir ? ` [${r.size}]` : '';
+            lines.push(`  ${icon} ${r.name}${suffix}`);
+            lines.push(`     📂 ${r.path}`);
+        });
+        lines.push('───────────────');
+        lines.push('输入 s 关键词 继续搜索 | 输入内容继续浏览');
+
+        await sender.sendText(userId, contextToken, lines.join('\n'));
+    } catch (err) {
+        logger.error('Search failed', { error: err.message });
+        await sender.sendText(userId, contextToken, '搜索失败，请稍后重试。');
+    }
 }
 
 function extractText(items) {

@@ -43,7 +43,7 @@ export function renderMenu(data, page = 0, pageSize = 8) {
         if (page > 0) nav.push('[p] ⬆ 上页');
         if (page < totalPages - 1) nav.push('[n] ⬇ 下页');
     }
-    nav.push('[r] 🔄 重置');
+    nav.push('[r] 🔄 重置  [s] 🔍 搜索');
     lines.push(nav.join('  '));
 
     return lines.join('\n');

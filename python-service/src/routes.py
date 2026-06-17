@@ -26,6 +26,26 @@ class DownloadRequest(BaseModel):
     file_id: str
     filename: str
 
+@router.get("/search")
+async def search_files(q: str = "", path: str = "/"):
+    """Search files/folders by name recursively from a starting path."""
+    if not q.strip():
+        return {"query": q, "results": []}
+    try:
+        api = get_quark()
+        folder_id = api.resolve_path(path)
+        results = api.search_files(folder_id, q.strip(), max_depth=2)
+        # Limit results to avoid huge responses
+        return {"query": q, "results": results[:30]}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=401, detail={"error": "cookie_expired", "message": str(e)})
+    except Exception as e:
+        logger.exception("Search failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/folder")
 async def list_folder(path: str = "/"):
     try:

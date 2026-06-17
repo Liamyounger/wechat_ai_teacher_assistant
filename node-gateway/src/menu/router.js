@@ -26,6 +26,12 @@ export function routeInput(text, folderData, currentPath, currentPage) {
         return { action: 'reset' };
     }
 
+    // Search: "s keyword" or "搜索 keyword"
+    const searchMatch = input.match(/^(?:s|搜索|search)\s+(.+)/i);
+    if (searchMatch) {
+        return { action: 'search', query: searchMatch[1].trim() };
+    }
+
     // Numeric selection
     const num = parseInt(input, 10);
     if (isNaN(num) || num < 1) {
