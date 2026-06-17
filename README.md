@@ -44,8 +44,8 @@ cd wechat-quark-bot
 
 ```json
 {
-  "botToken": "f21e28a8c586@im.bot:0600004c987122...",
-  "accountId": "f21e28a8c586@im.bot",
+  "botToken": "",
+  "accountId": "",
   "baseUrl": "https://ilinkai.weixin.qq.com",
   "quarkServiceUrl": "http://python-service:8000"
 }
