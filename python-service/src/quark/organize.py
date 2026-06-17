@@ -14,10 +14,10 @@ from .cookie import CookieManager
 # ── Grade detection ──────────────────────────────────────────────────
 
 GRADE_PATTERNS = [
-    (re.compile(r"一年级|1年级|一下|一\(下\)|一（下）|1下|1\(下\)"), "一年级"),
+    (re.compile(r"一年级|1年级|一下|一\(下\)|一（下）|1下|1\(下\)|(?:^|[^0-9])1下"), "一年级"),
     (re.compile(r"二年级|2年级|二下|二\(下\)|二（下）|2下|2\(下\)"), "二年级"),
-    (re.compile(r"三年级|3年级|三下|三\(下\)|三（下）|3下|3\(下\)|RJ3"), "三年级"),
-    (re.compile(r"四年级|4年级|四下|四\(下\)|四（下）|4下|4\(下\)|26新四"), "四年级"),
+    (re.compile(r"三年级|3年级|三下|三\(下\)|三（下）|3下|3\(下\)|RJ3[下]?"), "三年级"),
+    (re.compile(r"四年级|4年级|四下|四\(下\)|四（下）|4下|4\(下\)|26新四|新四"), "四年级"),
     (re.compile(r"五年级|5年级|五下|五\(下\)|五（下）|5下|5\(下\)"), "五年级"),
     (re.compile(r"六年级|6年级|六下|六\(下\)|六（下）|6下|6\(下\)|6下U"), "六年级"),
     (re.compile(r"小升初|小初衔接|预备新初一|初一预备"), "小升初"),
@@ -25,10 +25,11 @@ GRADE_PATTERNS = [
 ]
 
 SUBJECT_PATTERNS = [
-    (re.compile(r"数学|口算|计算|应用题|几何|苏教|人教|北师大|北师|黄冈.*数学|实验班.*数学"), "数学"),
-    (re.compile(r"语文|阅读|作文|默写|字词|句子|拼音|写字|课文|古诗词|一本.*语文|一本.*阅读"), "语文"),
+    (re.compile(r"数学|口算|计算|应用题|几何|苏教|人教|北师大|北师|黄冈.*数学|实验班.*数学|数学报|扬帆金考"), "数学"),
+    (re.compile(r"语文|阅读|作文|默写|字词|句子|拼音|写字|课文|古诗词|一本.*语文|一本.*阅读|日积月累"), "语文"),
     (re.compile(r"英语|PEP|RJ[3-6]|RJ\s*[3-6]|英文|单词|听力|口语|小学英语"), "英语"),
     (re.compile(r"科学|物理|化学|生物|道法|历史|地理"), "综合"),
+    (re.compile(r"mp3|MP3|音频|听力.*mp3"), "英语"),
 ]
 
 
@@ -49,11 +50,10 @@ def detect_subject(name: str) -> str:
 # ── Duplicate detection ──────────────────────────────────────────────
 
 def normalize_name(name: str) -> str:
-    """Strip (1), (2), 副本, -副本, _1, _2 suffixes for dedup comparison."""
-    return re.sub(
-        r"[\s_-]*(\(\d+\)|（\d+）|副本|-\s*副本|_\d+)(?=\.\w+$|$)",
-        "", name,
-    )
+    """Strip (1), (2), _1, _2, 副本 suffixes and page-extract for dedup comparison."""
+    name = re.sub(r"[\s_-]*-\s*页面提取(?=\.\w+$|$)", "", name)
+    name = re.sub(r"[\s_-]*(\(\d+\)|（\d+）|副本|-\s*副本|_\d+)(?=\.\w+$|$)", "", name)
+    return name
 
 
 def find_duplicates(files: list[dict]) -> list[list[dict]]:
@@ -65,44 +65,34 @@ def find_duplicates(files: list[dict]) -> list[list[dict]]:
     return [g for g in groups.values() if len(g) > 1]
 
 
-# ── Recursive scan ───────────────────────────────────────────────────
+# ── Flat scan ────────────────────────────────────────────────────────
 
-@dataclass
-class ScanResult:
-    path: str
-    fid: str
-    parent_fid: str
-    folders: list["ScanResult"] = field(default_factory=list)
-    files: list[dict] = field(default_factory=list)
-
-
-def scan_tree(client: QuarkClient, fid: str = "0", path: str = "/",
-              parent_fid: str = "0", depth: int = 0, max_depth: int = 5) -> ScanResult:
-    """Recursively scan the Quark drive."""
-    result = ScanResult(path=path, fid=fid, parent_fid=parent_fid)
+def list_entries(client: QuarkClient, fid: str, path: str) -> list[dict]:
+    """List all files and folders in a single directory."""
+    entries = []
     page = 1
-    all_entries = []
     while True:
         resp = client.list_folder(fid, page=page, size=200)
-        entries = resp.get("data", {}).get("list", [])
-        all_entries.extend(entries)
+        batch = resp.get("data", {}).get("list", [])
+        entries.extend(batch)
         total = resp.get("data", {}).get("total", 0)
         if total == 0 or page * 200 >= total:
             break
         page += 1
 
-    for e in all_entries:
+    result = []
+    for e in entries:
         if e.get("dir"):
-            sub_path = f"{path}/{e['file_name']}" if path != "/" else f"/{e['file_name']}"
-            if depth < max_depth:
-                sub = scan_tree(client, e["fid"], sub_path, fid, depth + 1, max_depth)
-                result.folders.append(sub)
-            else:
-                result.folders.append(ScanResult(
-                    path=sub_path, fid=e["fid"], parent_fid=fid,
-                ))
+            result.append({
+                "type": "folder",
+                "name": e.get("file_name", "unknown"),
+                "fid": e.get("fid", ""),
+                "parent_fid": fid,
+                "parent_path": path,
+            })
         else:
-            result.files.append({
+            result.append({
+                "type": "file",
                 "name": e.get("file_name", "unknown"),
                 "fid": e.get("fid", ""),
                 "size": e.get("size", 0),
@@ -117,8 +107,14 @@ def scan_tree(client: QuarkClient, fid: str = "0", path: str = "/",
 @dataclass
 class Operation:
     type: str  # create_folder, move, delete, rename
-    detail: str  # human-readable description
-    data: dict  # API params
+    detail: str
+    data: dict
+
+
+SYSTEM_FOLDERS = {
+    "夸克快传", "夸克上传文件", "夸克云解压", "来自：分享", "来自：云收藏",
+    "PDF页面提取", "我的备份", "文档工具", "我的扫描件",
+}
 
 
 class Organizer:
@@ -128,25 +124,35 @@ class Organizer:
         self.ops: list[Operation] = []
         self.stats = {"create": 0, "move": 0, "delete": 0, "rename": 0, "errors": 0}
 
-    def plan(self, scan: ScanResult):
-        """Generate organization plan."""
-        # Flatten all files from everywhere
-        all_files: list[dict] = []
-        folder_map: dict[str, str] = {}  # fid -> path
+    def scan_and_plan(self):
+        """Scan target folders and build organization plan."""
+        print("正在扫描根目录...")
+        root_entries = list_entries(self.client, "0", "/")
+        print(f"  根目录: {len(root_entries)} 项")
 
-        def walk(node: ScanResult):
-            folder_map[node.fid] = node.path
-            for f in node.files:
-                all_files.append(f)
-            for sub in node.folders:
-                walk(sub)
+        # Find the "来自：分享" folder fid
+        share_fid = None
+        for e in root_entries:
+            if e["type"] == "folder" and e["name"] == "来自：分享":
+                share_fid = e["fid"]
+                break
 
-        walk(scan)
+        share_entries = []
+        if share_fid:
+            print("正在扫描 来自：分享...")
+            share_entries = list_entries(self.client, share_fid, "/来自：分享")
+            print(f"  来自：分享: {len(share_entries)} 项")
 
-        # Find duplicates
+        # Combine all files from both locations
+        all_files = [e for e in root_entries if e["type"] == "file"]
+        all_files += [e for e in share_entries if e["type"] == "file"]
+
+        # Also check root folders for junk
+        root_folders = [e for e in root_entries if e["type"] == "folder"]
+
+        # 1. Detect duplicates
         dups = find_duplicates(all_files)
         for group in dups:
-            # Keep the one with shortest name (no suffix), delete others
             group.sort(key=lambda f: len(f["name"]))
             keep = group[0]
             for dup in group[1:]:
@@ -156,22 +162,27 @@ class Organizer:
                     data={"parent_fid": dup["parent_fid"], "filelist": [dup["fid"]]},
                 ))
 
-        # Classify and move root-level files
+        # 2. Classify and move files
+        existing_grade_folders = {}  # name -> fid in root
+        for e in root_folders:
+            grade = detect_grade(e["name"])
+            if grade != "未分类" and e["name"] not in SYSTEM_FOLDERS:
+                existing_grade_folders[grade] = e["fid"]
+
         for f in all_files:
             name = f["name"]
             parent = f.get("parent_path", "/")
-
-            # Only move files at root level or in 来自：分享
-            if parent not in ("/", "/来自：分享"):
-                continue
-
             grade = detect_grade(name)
             subject = detect_subject(name)
 
             if grade == "未分类":
                 continue
 
-            target = f"/{grade}/{subject}" if subject != "其他" else f"/{grade}"
+            # Determine target path
+            target = f"/{grade}"
+            if subject != "其他":
+                target = f"/{grade}/{subject}"
+
             self.ops.append(Operation(
                 type="move",
                 detail=f"移动: {parent}/{name} -> {target}/",
@@ -182,17 +193,34 @@ class Organizer:
                 },
             ))
 
-        # Cleanup: find empty junk folders
-        junk_names = {"新建文件夹", "新建文件夹-"}
-        for node in scan.folders:
-            if any(node.path.endswith(j) or j in node.path.split("/")[-1]
-                   for j in junk_names):
-                if not node.files and not node.folders:
-                    self.ops.append(Operation(
-                        type="delete",
-                        detail=f"删除空文件夹: {node.path}",
-                        data={"parent_fid": node.parent_fid, "filelist": [node.fid]},
-                    ))
+        # 3. Cleanup junk folders
+        junk_patterns = [re.compile(r"新建文件夹")]
+        for f in root_folders:
+            for pat in junk_patterns:
+                if pat.search(f["name"]):
+                    # Check if empty
+                    sub = list_entries(self.client, f["fid"], f"/{f['name']}")
+                    if len(sub) == 0:
+                        self.ops.append(Operation(
+                            type="delete",
+                            detail=f"删除空文件夹: /{f['name']}",
+                            data={"parent_fid": f["parent_fid"], "filelist": [f["fid"]]},
+                        ))
+
+        # 4. Rename: remove (1) suffix and -页面提取 from non-duplicate files
+        for f in all_files:
+            name = f["name"]
+            new_name = normalize_name(name)
+            # Also remove -页面提取
+            new_name = re.sub(r"-\s*页面提取", "", new_name)
+            if new_name != name and f["fid"] not in {
+                dup["fid"] for group in dups for dup in group[1:]
+            }:
+                self.ops.append(Operation(
+                    type="rename",
+                    detail=f"重命名: {name} -> {new_name}",
+                    data={"fid": f["fid"], "new_name": new_name},
+                ))
 
     def print_plan(self):
         for i, op in enumerate(self.ops, 1):
@@ -200,8 +228,7 @@ class Organizer:
             print(f"  {i}. {icon} {op.detail}")
 
     def execute(self):
-        """Execute the plan, creating target folders as needed."""
-        created_folders: dict[str, str] = {}  # path -> fid
+        created_folders: dict[str, str] = {}
 
         for i, op in enumerate(self.ops, 1):
             try:
@@ -209,23 +236,19 @@ class Organizer:
                     if self.dry_run:
                         print(f"  [DRY RUN] 创建: {op.detail}")
                         continue
-                    fid = self.client.create_folder(
-                        op.data["parent_fid"], op.data["name"],
-                    )
+                    fid = self.client.create_folder(op.data["parent_fid"], op.data["name"])
                     created_folders[op.data.get("path", "")] = fid
+                    print(f"  ✅ {op.detail}")
 
                 elif op.type == "move":
-                    dest_path = op.data.get("dest_path", "")
                     if self.dry_run:
                         print(f"  [DRY RUN] {op.detail}")
                         continue
-                    # Resolve or create target folder
+                    dest_path = op.data.get("dest_path", "")
                     dest_fid = created_folders.get(dest_path)
                     if dest_fid is None:
                         dest_fid = self._ensure_path(dest_path, created_folders)
-                    self.client.move_files(
-                        op.data["parent_fid"], op.data["filelist"], dest_fid,
-                    )
+                    self.client.move_files(op.data["parent_fid"], op.data["filelist"], dest_fid)
                     print(f"  ✅ {op.detail}")
 
                 elif op.type == "delete":
@@ -248,8 +271,6 @@ class Organizer:
                 self.stats["errors"] += 1
 
     def _ensure_path(self, path: str, cache: dict[str, str]) -> str:
-        """Ensure folder path exists, creating intermediate folders as needed.
-        Returns the leaf folder's fid."""
         if path in cache:
             return cache[path]
 
@@ -262,7 +283,6 @@ class Organizer:
             if current_path in cache:
                 current_fid = cache[current_path]
                 continue
-            # Try to find existing folder
             found = self.client._find_child_folder(current_fid, part)
             if found:
                 current_fid = found
@@ -281,32 +301,13 @@ def run_organize(cookies_path: str = "config/cookies.json", dry_run: bool = True
     cm = CookieManager(cookies_path)
     client = QuarkClient(cm)
     try:
-        print("正在扫描夸克网盘...")
-        start = time.time()
-        tree = scan_tree(client)
-        elapsed = time.time() - start
-
-        # Count
-        def count_nodes(n: ScanResult):
-            nf = len(n.files)
-            nd = len(n.folders)
-            for s in n.folders:
-                sf, sd = count_nodes(s)
-                nf += sf
-                nd += sd
-            return nf, nd
-
-        total_files, total_dirs = count_nodes(tree)
-        print(f"扫描完成 ({elapsed:.1f}s): {total_dirs} 个文件夹, {total_files} 个文件\n")
-
+        print("正在分析夸克网盘...")
         organizer = Organizer(client, dry_run=dry_run)
-        organizer.plan(tree)
+        organizer.scan_and_plan()
+        print()
         organizer.print_plan()
 
         print(f"\n共 {len(organizer.ops)} 个操作")
-        print(f"  移动: {organizer.stats['move']} (计划)")
-        print(f"  删除: {organizer.stats['delete']} (计划)")
-        print(f"  重命名: {organizer.stats['rename']} (计划)")
 
         if dry_run:
             print("\n🔍 这是预览模式，没有实际修改任何文件。")
@@ -314,7 +315,8 @@ def run_organize(cookies_path: str = "config/cookies.json", dry_run: bool = True
         else:
             print("\n⚡ 执行整理...")
             organizer.execute()
-            print(f"\n完成! 成功 {sum(organizer.stats.values()) - organizer.stats['errors']} 个操作")
+            total_ok = sum(v for k, v in organizer.stats.items() if k != "errors")
+            print(f"\n完成! 成功 {total_ok} 个操作")
             if organizer.stats["errors"]:
                 print(f"失败 {organizer.stats['errors']} 个操作")
     finally:
