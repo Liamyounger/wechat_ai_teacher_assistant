@@ -145,6 +145,31 @@ class QuarkClient:
             "filelist": filelist,
         })
 
+    def create_share_url(self, fid: str, filename: str, expired_type: int = 1) -> str:
+        """Create a share link for a file. expired_type: 1=permanent, 2=1d, 3=7d, 4=30d.
+        Returns the share URL."""
+        # Step 1: create share task
+        task_resp = self._request("POST", "share", json={
+            "fid_list": [fid],
+            "title": filename,
+            "url_type": 1,
+            "expired_type": expired_type,
+        })
+        task_id = task_resp["data"]["task_id"]
+
+        # Step 2: get share_id from task
+        task_info = self._request("GET", "task", params={
+            "task_id": task_id,
+            "retry_index": "0",
+        })
+        share_id = task_info["data"]["share_id"]
+
+        # Step 3: submit share to get URL
+        share_resp = self._request("POST", "share/password", json={
+            "share_id": share_id,
+        })
+        return share_resp["data"]["share_url"]
+
     def search_files(self, parent_fid: str, query: str, max_depth: int = 1) -> list[dict]:
         """Search files by name recursively up to max_depth levels.
         Returns list of {name, fid, size, path} dicts."""

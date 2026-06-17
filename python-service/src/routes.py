@@ -80,6 +80,23 @@ async def list_folder(path: str = "/"):
         logger.exception("Folder listing failed")
         raise HTTPException(status_code=500, detail=str(e))
 
+class ShareRequest(BaseModel):
+    file_id: str
+    filename: str
+
+@router.post("/share")
+async def create_share(req: ShareRequest):
+    """Create a public share link for a file (for files > 25MB that can't be sent via WeChat)."""
+    try:
+        api = get_quark()
+        url = api.create_share_url(req.file_id, req.filename)
+        return {"share_url": url, "filename": req.filename}
+    except PermissionError as e:
+        raise HTTPException(status_code=401, detail={"error": "cookie_expired", "message": str(e)})
+    except Exception as e:
+        logger.exception("Share creation failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/download")
 async def submit_download(req: DownloadRequest):
     task = task_queue.submit(req.file_id, req.filename)

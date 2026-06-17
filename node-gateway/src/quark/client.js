@@ -32,6 +32,18 @@ export class QuarkServiceClient {
         );
     }
 
+    /** POST /api/v1/share — get a share link (for large files) */
+    async createShareLink(fileId, filename) {
+        const url = `${this.baseUrl}/api/v1/share`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_id: fileId, filename }),
+            signal: AbortSignal.timeout(15_000),
+        });
+        return res.json();
+    }
+
     /** POST /api/v1/download */
     async submitDownload(fileId, filename) {
         const url = `${this.baseUrl}/api/v1/download`;
