@@ -79,9 +79,28 @@ class QuarkQrLogin:
         return None
 
     def fetch_cookies(self, service_ticket: str) -> dict[str, str]:
-        """Use service_ticket to get session cookies."""
+        """Use service_ticket to get session cookies, then warm up by visiting
+        pan.quark.cn and drive-pc.quark.cn to capture all necessary tokens."""
+        # Step 1: Exchange service ticket for account cookies
         resp = self.client.get(USER_INFO_URL, params={"st": service_ticket, "lw": "scan"})
         resp.raise_for_status()
+
+        # Step 2: Visit pan.quark.cn homepage to get __puus and other cookies
+        try:
+            self.client.get("https://pan.quark.cn/", timeout=15)
+        except Exception:
+            pass
+
+        # Step 3: Visit drive-pc API to get PC-specific cookies
+        try:
+            self.client.get(
+                "https://drive-pc.quark.cn/1/clouddrive/file/sort",
+                params={"pr": "pc", "pwd": "1", "pdir_fid": "0", "_page": "1", "_size": "1", "_sort": "file_type:asc,updated_at:desc"},
+                timeout=15,
+            )
+        except Exception:
+            pass
+
         cookies = {}
         for cookie in self.client.cookies.jar:
             if cookie.domain and "quark.cn" in cookie.domain:

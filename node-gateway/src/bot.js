@@ -63,7 +63,7 @@ export function createHandler(sessionManager, quarkClient, sender) {
 
             case 'back':
             case 'browse_root':
-                session.currentPath = '/试卷';
+                session.currentPath = '/';
                 session._page = 0;
                 session.state = 'browsing';
                 await showCurrentFolder(userId, contextToken, session, quarkClient, sender);

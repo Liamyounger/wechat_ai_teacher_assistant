@@ -30,7 +30,7 @@ export function createSessionManager() {
         if (!s) {
             s = {
                 userId,
-                currentPath: '/试卷',
+                currentPath: '/',
                 state: 'browsing',
                 selectedFile: null,
                 lastActivity: Date.now(),

@@ -7,7 +7,7 @@ export function routeInput(text, folderData, currentPath, currentPage) {
     const input = text.trim().toLowerCase();
 
     if (input === '0' || input === '返回' || input === 'back') {
-        if (currentPath === '/' || currentPath === '/试卷') {
+        if (currentPath === '/') {
             return { action: 'browse_root' };
         }
         const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
