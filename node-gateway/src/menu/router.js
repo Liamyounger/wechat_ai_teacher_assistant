@@ -56,6 +56,6 @@ export function routeInput(text, folderData, currentPath, currentPage) {
 
     return {
         action: 'select_file',
-        selectedFile: { fid: selected.fid, filename: selected.name },
+        selectedFile: { fid: selected.fid, filename: selected.name, size: selected.size || '' },
     };
 }

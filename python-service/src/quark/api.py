@@ -70,16 +70,19 @@ class QuarkClient:
     def get_file_detail(self, file_id: str) -> dict[str, Any]:
         return self._request("GET", "file", params={"fids": file_id})
 
-    def get_download_url(self, file_id: str) -> str:
-        detail = self.get_file_detail(file_id)
-        data = detail.get("data", [])
+    def get_download_url(self, file_id: str) -> tuple[str, str]:
+        """Get download URL and filename via POST /file/download (correct Quark API).
+        Returns (download_url, filename)."""
+        resp = self._request("POST", "file/download", json={"fids": [file_id]},
+                             params={"sys": "win32", "ve": "2.5.56"})
+        data = resp.get("data", [])
         if not data:
             raise ValueError(f"No download info for file {file_id}")
-        file_info = data[0]
-        download_url = file_info.get("download_url")
-        if not download_url:
-            raise ValueError(f"No download URL for file {file_id}: {file_info}")
-        return download_url
+        info = data[0]
+        url = info.get("download_url")
+        if not url:
+            raise ValueError(f"No download URL for file {file_id}: {info}")
+        return url, info.get("file_name", "unknown")
 
     def resolve_path(self, path: str) -> str:
         if path in ("", "/"):

@@ -75,15 +75,16 @@ class DownloadQueue:
                 task.progress = 0
                 logger.info(f"Starting download: {task.filename}")
 
-                download_url = api.get_download_url(task.file_id)
+                download_url, filename = api.get_download_url(task.file_id)
                 dest_dir = Path(settings.download_dir) / task.task_id
                 dest_dir.mkdir(parents=True, exist_ok=True)
 
                 def progress_cb(pct: int):
                     task.progress = pct
 
-                local = download_file(download_url, str(dest_dir / task.filename),
-                                      progress_cb=progress_cb)
+                local = download_file(download_url, str(dest_dir / filename),
+                                      progress_cb=progress_cb,
+                                      cookies=cm.to_header())
                 task.local_path = local
                 task.progress = 100
                 task.status = "done"

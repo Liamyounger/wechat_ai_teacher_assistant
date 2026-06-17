@@ -29,7 +29,7 @@ export function createHandler(sessionManager, quarkClient, sender) {
                     session.searchResults = null;
                     await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
                 } else {
-                    session.selectedFile = { fid: selected.fid, filename: selected.name };
+                    session.selectedFile = { fid: selected.fid, filename: selected.name, size: selected.size || '' };
                     session.state = 'awaiting_download_confirm';
                     session.searchResults = null;
                     await sender.sendText(userId, contextToken,
@@ -144,10 +144,28 @@ async function showCurrentFolder(userId, contextToken, session, quarkClient, sen
     }
 }
 
+function exceedsSizeLimit(sizeStr) {
+    if (!sizeStr) return false;
+    const match = sizeStr.match(/^([\d.]+)\s*(MB|GB|KB)/i);
+    if (!match) return false;
+    const num = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    if (unit === 'GB') return true;
+    if (unit === 'MB' && num >= 25) return true;
+    return false;
+}
+
 async function handleDownload(userId, contextToken, session, quarkClient, sender) {
-    const { fid, filename } = session.selectedFile;
+    const { fid, filename, size } = session.selectedFile;
     session.state = 'browsing';
     session.selectedFile = null;
+
+    if (exceedsSizeLimit(size)) {
+        await sender.sendText(userId, contextToken,
+            `⚠️ 「${filename}」(${size}) 超过微信 25MB 限制，无法发送。\n请在电脑上直接下载。`);
+        await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
+        return;
+    }
 
     try {
         await sender.sendText(userId, contextToken, `⏳ 正在下载 「${filename}」...`);
