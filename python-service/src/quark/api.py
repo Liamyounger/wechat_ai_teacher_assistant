@@ -111,5 +111,36 @@ class QuarkClient:
             page += 1
         return None
 
+    # ── File operations ──────────────────────────────────────────────
+
+    def create_folder(self, parent_fid: str, name: str) -> str:
+        """Create a folder and return its fid."""
+        resp = self._request("POST", "file", json={
+            "pdir_fid": parent_fid,
+            "file_name": name,
+            "dir": True,
+        })
+        return resp["data"]["fid"]
+
+    def rename_file(self, fid: str, new_name: str) -> None:
+        self._request("POST", "file/rename", json={
+            "fid": fid,
+            "file_name": new_name,
+        })
+
+    def move_files(self, parent_fid: str, filelist: list[str], dest_fid: str) -> None:
+        """Move files to a destination folder. parent_fid is the source folder."""
+        self._request("POST", "file/move", json={
+            "current_dir_fid": parent_fid,
+            "filelist": filelist,
+            "to_pdir_fid": dest_fid,
+        })
+
+    def delete_files(self, parent_fid: str, filelist: list[str]) -> None:
+        self._request("POST", "file/delete", json={
+            "current_dir_fid": parent_fid,
+            "filelist": filelist,
+        })
+
     def close(self):
         self.client.close()
