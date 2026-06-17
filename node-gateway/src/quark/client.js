@@ -5,10 +5,10 @@ export class QuarkServiceClient {
         this.baseUrl = baseUrl.replace(/\/+$/, '');
     }
 
-    async request(path) {
+    async request(path, timeoutMs = 15_000) {
         const url = `${this.baseUrl}${path}`;
         logger.debug('Quark service request', { url });
-        const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
         const body = await res.json();
         if (!res.ok) {
             const err = new Error(body.detail || body.message || `HTTP ${res.status}`);
@@ -27,7 +27,8 @@ export class QuarkServiceClient {
     /** GET /api/v1/search?q=keyword&path=/ */
     async searchFiles(query, path = '/') {
         return this.request(
-            `/api/v1/search?q=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}`
+            `/api/v1/search?q=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}`,
+            120_000  // recursive search can take a while
         );
     }
 
