@@ -1,6 +1,6 @@
-# WeChat Quark Bot
+# wechat_ai_teacher_assistant
 
-微信机器人，用户在微信中通过菜单导航夸克网盘文件夹，选择文件后直接以 PDF 文件消息发送到微信。
+微信 AI 教师助手 —— 用户在微信中通过菜单导航夸克网盘文件夹，选择试卷/文件后以 PDF 文件消息发送到微信。支持查询试卷、排课表、PDF 发送等功能。
 
 ## 架构
 
@@ -206,3 +206,5 @@ docker compose ps            # 查看容器状态
 **文件发送失败：**
 - iLink 文件大小限制 25MB，超过此大小的文件无法通过微信发送
 - 如有大量文件发送，可能触发微信限频，等待后重试
+
+GitHub: [https://github.com/Liamyounger/wechat_ai_teacher_assistant](https://github.com/Liamyounger/wechat_ai_teacher_assistant)
