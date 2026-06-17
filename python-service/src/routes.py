@@ -34,7 +34,7 @@ async def search_files(q: str = "", path: str = "/"):
     try:
         api = get_quark()
         folder_id = api.resolve_path(path)
-        results = api.search_files(folder_id, q.strip(), max_depth=1)
+        results = api.search_files(folder_id, q.strip(), max_depth=0)
         # Limit results to avoid huge responses
         return {"query": q, "results": results[:30]}
     except FileNotFoundError as e:
