@@ -1,0 +1,28 @@
+version: "3.8"
+services:
+  python-service:
+    build: ./python-service
+    container_name: quark-service
+    volumes:
+      - ./python-service/config/cookies.json:/app/config/cookies.json:ro
+      - quark_downloads:/tmp/quark_downloads
+    restart: unless-stopped
+    environment:
+      - QUARK_LOG_LEVEL=INFO
+
+  node-gateway:
+    build: ./node-gateway
+    container_name: wechat-gateway
+    volumes:
+      - ./node-gateway/config/bot.json:/app/config/bot.json:ro
+      - gateway_data:/root/.wechat-quark-bot
+      - quark_downloads:/tmp/quark_downloads:ro
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=INFO
+    depends_on:
+      - python-service
+
+volumes:
+  quark_downloads:
+  gateway_data:
