@@ -25,11 +25,13 @@ GRADE_PATTERNS = [
 ]
 
 SUBJECT_PATTERNS = [
-    (re.compile(r"数学|口算|计算|应用题|几何|苏教|人教|北师大|北师|黄冈.*数学|实验班.*数学|数学报|扬帆金考"), "数学"),
-    (re.compile(r"语文|阅读|作文|默写|字词|句子|拼音|写字|课文|古诗词|一本.*语文|一本.*阅读|日积月累"), "语文"),
-    (re.compile(r"英语|PEP|RJ[3-6]|RJ\s*[3-6]|英文|单词|听力|口语|小学英语"), "英语"),
+    # English must be checked FIRST — keywords like PEP, 英语 are unambiguous
+    (re.compile(r"英语|PEP|英文|单词|口语|小学英语|RJ[3-6]下*\s*英语"), "英语"),
+    (re.compile(r"数学|口算|计算.*题|应用题|几何|数学报|扬帆金考|黄冈名卷.*数学|实验班.*数学"), "数学"),
+    (re.compile(r"语文|阅读|作文|默写|字词|句子|拼音|写字|课文|古诗词|日积月累|一本.*语文|一本.*阅读"), "语文"),
     (re.compile(r"科学|物理|化学|生物|道法|历史|地理"), "综合"),
-    (re.compile(r"mp3|MP3|音频|听力.*mp3"), "英语"),
+    # Audio files are usually English listening practice
+    (re.compile(r"\.mp3$|\.MP3$|音频"), "英语"),
 ]
 
 
@@ -150,26 +152,26 @@ class Organizer:
         # Also check root folders for junk
         root_folders = [e for e in root_entries if e["type"] == "folder"]
 
+        # Track fids to delete (don't move them later)
+        deleted_fids: set[str] = set()
+
         # 1. Detect duplicates
         dups = find_duplicates(all_files)
         for group in dups:
             group.sort(key=lambda f: len(f["name"]))
             keep = group[0]
             for dup in group[1:]:
+                deleted_fids.add(dup["fid"])
                 self.ops.append(Operation(
                     type="delete",
                     detail=f"删除重复: {dup['parent_path']}/{dup['name']} (保留 {keep['name']})",
                     data={"parent_fid": dup["parent_fid"], "filelist": [dup["fid"]]},
                 ))
 
-        # 2. Classify and move files
-        existing_grade_folders = {}  # name -> fid in root
-        for e in root_folders:
-            grade = detect_grade(e["name"])
-            if grade != "未分类" and e["name"] not in SYSTEM_FOLDERS:
-                existing_grade_folders[grade] = e["fid"]
-
+        # 2. Classify and move files (skip those marked for deletion)
         for f in all_files:
+            if f["fid"] in deleted_fids:
+                continue
             name = f["name"]
             parent = f.get("parent_path", "/")
             grade = detect_grade(name)
@@ -209,6 +211,8 @@ class Organizer:
 
         # 4. Rename: remove (1) suffix and -页面提取 from non-duplicate files
         for f in all_files:
+            if f["fid"] in deleted_fids:
+                continue
             name = f["name"]
             new_name = normalize_name(name)
             # Also remove -页面提取
