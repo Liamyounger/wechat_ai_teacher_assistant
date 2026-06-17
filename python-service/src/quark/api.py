@@ -25,8 +25,10 @@ class QuarkClient:
         return {
             "User-Agent": ua,
             "Referer": "https://pan.quark.cn/",
+            "Origin": "https://pan.quark.cn",
             "Cookie": self.cookie.to_header(),
-            "Accept": "application/json",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Content-Type": "application/json",
         }
 
