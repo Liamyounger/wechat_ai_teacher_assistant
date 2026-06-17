@@ -16,7 +16,31 @@ export function createHandler(sessionManager, quarkClient, sender) {
         const text = extractText(msg.item_list);
         const session = sessionManager.getOrCreate(userId);
 
-        // Handle download confirmation
+        // Handle search results selection (numbered choice while in search state)
+        if (session.state === 'search_results') {
+            const num = parseInt(text.trim(), 10);
+            if (!isNaN(num) && num >= 1 && session.searchResults &&
+                num <= session.searchResults.length) {
+                const selected = session.searchResults[num - 1];
+                if (selected.is_dir) {
+                    session.currentPath = selected.path;
+                    session._page = 0;
+                    session.state = 'browsing';
+                    session.searchResults = null;
+                    await showCurrentFolder(userId, contextToken, session, quarkClient, sender);
+                } else {
+                    session.selectedFile = { fid: selected.fid, filename: selected.name };
+                    session.state = 'awaiting_download_confirm';
+                    session.searchResults = null;
+                    await sender.sendText(userId, contextToken,
+                        `确认下载 「${selected.name}」？\n回复 y 确认，其他键取消`);
+                }
+                return;
+            }
+            // Any other input exits search mode
+            session.state = 'browsing';
+            session.searchResults = null;
+        }
         if (session.state === 'awaiting_download_confirm') {
             if (text.toLowerCase() === 'y' || text === '是' || text === '确认') {
                 await handleDownload(userId, contextToken, session, quarkClient, sender);
@@ -154,17 +178,20 @@ async function handleSearch(userId, contextToken, query, session, quarkClient, s
             return;
         }
 
+        session.searchResults = results;
+        session.state = 'search_results';
+
         const lines = [];
         lines.push(`🔍 "${query}" 找到 ${results.length} 个结果:`);
         lines.push('───────────────');
         results.forEach((r, i) => {
             const icon = r.is_dir ? '📁' : '📄';
             const suffix = !r.is_dir ? ` [${r.size}]` : '';
-            lines.push(`  ${icon} ${r.name}${suffix}`);
+            lines.push(`[${i + 1}] ${icon} ${r.name}${suffix}`);
             lines.push(`     📂 ${r.path}`);
         });
         lines.push('───────────────');
-        lines.push('输入 s 关键词 继续搜索 | 输入内容继续浏览');
+        lines.push('回复数字序号选择文件下载 | 输入 s 关键词 继续搜索');
 
         await sender.sendText(userId, contextToken, lines.join('\n'));
     } catch (err) {
