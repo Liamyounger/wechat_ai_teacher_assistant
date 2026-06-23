@@ -32,6 +32,12 @@ export function routeInput(text, folderData, currentPath, currentPage) {
         return { action: 'search', query: searchMatch[1].trim() };
     }
 
+    // Article search: "as keyword" or "搜文章 keyword"
+    const articleSearchMatch = input.match(/^(?:as|搜文章)\s+(.+)/i);
+    if (articleSearchMatch) {
+        return { action: 'article_search', query: articleSearchMatch[1].trim() };
+    }
+
     // Numeric selection
     const num = parseInt(input, 10);
     if (isNaN(num) || num < 1) {
