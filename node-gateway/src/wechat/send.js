@@ -63,7 +63,17 @@ export function createSender(api, botAccountId) {
             await sendText(toUserId, contextToken, `文件不存在: ${resolved}`);
             return;
         }
-        const media = await uploadFile(api, toUserId, resolved);
+        let media;
+        try {
+            media = await uploadFile(api, toUserId, resolved);
+        } catch (err) {
+            if (err.message.includes('File too large')) {
+                await sendText(toUserId, contextToken, `⚠️ ${err.message}\n建议用电脑夸克 App 直接下载。`);
+            } else {
+                await sendText(toUserId, contextToken, `上传失败: ${err.message}`);
+            }
+            return;
+        }
         const aesKeyBase64 = Buffer.from(media.aesKeyHex).toString('base64');
         const item = media.mediaType === 'image' ? {
             type: MessageItemType.IMAGE,

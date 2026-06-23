@@ -1,0 +1,87 @@
+{
+  "3年级科学": {
+    "path": "/3年级科学",
+    "folders": [],
+    "files": [
+      {
+        "name": "3年级科学参考答案.pdf",
+        "fid": "34a69325b7364148abe6c3ea9c8a5d28",
+        "size": "230.5KB"
+      }
+    ]
+  },
+  "3年级数学": {
+    "path": "/3年级数学",
+    "folders": [],
+    "files": [
+      {
+        "name": "3年级数学参考答案.pdf",
+        "fid": "c752bee9478f42a095deda3e8452cebd",
+        "size": "515.4KB"
+      }
+    ]
+  },
+  "3年级下册英语人教PEP版习题试卷": {
+    "path": "/3年级下册英语人教PEP版习题试卷",
+    "folders": [
+      {
+        "name": "人教PEP版英语 三年级下 单元试卷（24份）含听力（18份）",
+        "fid": "76f02a0796254f43a9fb0ef28b554a54",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 课时练习（97份）",
+        "fid": "caa3e95038bf47b08ffddbbd76651878",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 期末试卷（25份）含听力（14份）",
+        "fid": "c2ad9d0adf3a477ba9342f61dde0c3fd",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 期中试卷（05份）含听力（03份）",
+        "fid": "907efa9cf3bd4f2390cc6929a1245971",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 月考试卷（02份）",
+        "fid": "ecc13d5b558c429b9cbe484f82efce38",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 知识总结（19份）",
+        "fid": "b9a73aae054d4d0d8b0d8d99b9fa2a0d",
+        "has_children": true
+      },
+      {
+        "name": "人教PEP版英语 三年级下 专项试卷（20份）",
+        "fid": "cd72f512a0d94a5f9f3f7d70c0bfb8b2",
+        "has_children": true
+      }
+    ],
+    "files": []
+  },
+  "3年级语文": {
+    "path": "/3年级语文",
+    "folders": [],
+    "files": [
+      {
+        "name": "3年级语文期末试卷（含答题卡）HL201601.pdf",
+        "fid": "3c3245a98cfd44248479d7ad41ef5148",
+        "size": "4.3MB"
+      }
+    ]
+  },
+  "3年级英语": {
+    "path": "/3年级英语",
+    "folders": [],
+    "files": [
+      {
+        "name": "3年级英语参考答案.pdf",
+        "fid": "a4fc170435ef4c5dbd83f18dd0a4124f",
+        "size": "299.9KB"
+      }
+    ]
+  }
+}

@@ -17,11 +17,13 @@ export function renderMenu(data, page = 0, pageSize = 8) {
         ...files.map(f => ({ ...f, type: 'file' })),
     ];
 
-    const totalPages = Math.ceil(allItems.length / pageSize);
+    const totalPages = Math.ceil(allItems.length / pageSize) || 1;
     const start = page * pageSize;
     const pageItems = allItems.slice(start, start + pageSize);
 
     lines.push(`📂 ${path || '/'}`);
+    lines.push(`📁 ${folders.length} 个文件夹  📄 ${files.length} 个文件`);
+    lines.push(`第 ${page + 1}/${totalPages} 页`);
     lines.push('───────────────');
 
     if (pageItems.length === 0) {
@@ -41,7 +43,7 @@ export function renderMenu(data, page = 0, pageSize = 8) {
         if (page > 0) nav.push('[p] ⬆ 上页');
         if (page < totalPages - 1) nav.push('[n] ⬇ 下页');
     }
-    nav.push('[r] 🔄 重置');
+    nav.push('[r] 🔄 重置  [s] 🔍 搜索');
     lines.push(nav.join('  '));
 
     return lines.join('\n');

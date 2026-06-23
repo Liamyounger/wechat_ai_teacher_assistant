@@ -7,7 +7,7 @@ export function routeInput(text, folderData, currentPath, currentPage) {
     const input = text.trim().toLowerCase();
 
     if (input === '0' || input === '返回' || input === 'back') {
-        if (currentPath === '/' || currentPath === '/试卷') {
+        if (currentPath === '/') {
             return { action: 'browse_root' };
         }
         const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/';
@@ -24,6 +24,18 @@ export function routeInput(text, folderData, currentPath, currentPage) {
 
     if (input === 'r' || input === '重置' || input === 'reset') {
         return { action: 'reset' };
+    }
+
+    // Search: "s keyword" or "搜索 keyword"
+    const searchMatch = input.match(/^(?:s|搜索|search)\s+(.+)/i);
+    if (searchMatch) {
+        return { action: 'search', query: searchMatch[1].trim() };
+    }
+
+    // Article search: "as keyword" or "搜文章 keyword"
+    const articleSearchMatch = input.match(/^(?:as|搜文章)\s+(.+)/i);
+    if (articleSearchMatch) {
+        return { action: 'article_search', query: articleSearchMatch[1].trim() };
     }
 
     // Numeric selection
@@ -50,6 +62,6 @@ export function routeInput(text, folderData, currentPath, currentPage) {
 
     return {
         action: 'select_file',
-        selectedFile: { fid: selected.fid, filename: selected.name },
+        selectedFile: { fid: selected.fid, filename: selected.name, size: selected.size || '' },
     };
 }

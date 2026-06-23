@@ -1,10 +1,9 @@
-version: "3.8"
 services:
   python-service:
     build: ./python-service
     container_name: quark-service
     volumes:
-      - ./python-service/config/cookies.json:/app/config/cookies.json:ro
+      - ./python-service/config:/app/config
       - quark_downloads:/tmp/quark_downloads
     restart: unless-stopped
     environment:

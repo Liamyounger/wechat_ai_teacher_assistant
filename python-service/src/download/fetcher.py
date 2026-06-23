@@ -5,7 +5,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3) -> str:
+def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3, cookies: str = "") -> str:
     """Download a file with retry and backoff. Returns local path."""
     import httpx
 
@@ -21,7 +21,10 @@ def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3) -
             headers = {
                 "User-Agent": random.choice(ua_pool),
                 "Referer": "https://pan.quark.cn/",
+                "Origin": "https://pan.quark.cn",
             }
+            if cookies:
+                headers["Cookie"] = cookies
             with httpx.stream("GET", url, headers=headers, timeout=300.0,
                               follow_redirects=True) as resp:
                 resp.raise_for_status()

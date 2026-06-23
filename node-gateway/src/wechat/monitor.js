@@ -1,8 +1,7 @@
-import { loadSyncBuf, saveSyncBuf } from './sync-buf.js';
+import { clearSyncBuf, loadSyncBuf, saveSyncBuf } from './sync-buf.js';
 import { logger } from '../logger.js';
 
 const SESSION_EXPIRED_ERRCODE = -14;
-const SESSION_EXPIRED_PAUSE = 60 * 60 * 1000;
 
 export function createMonitor(api, callbacks) {
     const controller = new AbortController();
@@ -14,11 +13,15 @@ export function createMonitor(api, callbacks) {
             try {
                 const buf = loadSyncBuf();
                 const resp = await api.getUpdates(buf || undefined);
-                if (resp.ret === SESSION_EXPIRED_ERRCODE) {
-                    logger.warn('Session expired, pausing 1hr');
-                    callbacks.onSessionExpired?.();
-                    await sleep(SESSION_EXPIRED_PAUSE, controller.signal);
-                    failures = 0;
+                if (resp.errcode != null && resp.errcode !== 0) {
+                    if (resp.errcode === SESSION_EXPIRED_ERRCODE) {
+                        logger.error('Session expired — token is no longer valid. Re-run setup.');
+                        clearSyncBuf();
+                        callbacks.onSessionExpired?.();
+                        process.exit(1);
+                    }
+                    logger.warn('API error response', { errcode: resp.errcode, errmsg: resp.errmsg });
+                    await sleep(3_000, controller.signal);
                     continue;
                 }
                 if (resp.get_updates_buf) saveSyncBuf(resp.get_updates_buf);
