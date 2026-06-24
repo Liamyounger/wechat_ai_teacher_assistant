@@ -107,7 +107,7 @@ class DownloadQueue:
 
                 local = download_file(download_url, str(dest_dir / filename),
                                       progress_cb=progress_cb,
-                                      cookie_dict=cm.to_dict())
+                                      cookie_header=cm.to_header())
                 task.local_path = local
                 task.progress = 100
 
