@@ -21,6 +21,18 @@ UA = (
     " Core/1.94.225.400 QQBrowser/12.2.5544.400"
 )
 
+# Fallback UA used when Quark rejects the default UA for downloads (code 23018)
+UA_QUARK_DESKTOP = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    " (KHTML, like Gecko) quark-cloud-drive/2.5.56 Chrome/100.0.4896.160"
+    " Electron/18.3.5.12-a038f7b798 Safari/537.36 Channel/pckk_other_ch"
+)
+
+UA_MODERN = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    " (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+)
+
 
 class QuarkClient:
     def __init__(self, cookie_manager: CookieManager):
@@ -71,18 +83,55 @@ class QuarkClient:
         return self._request("GET", "file", params={"fids": file_id})
 
     def get_download_url(self, file_id: str) -> tuple[str, str]:
-        """Get download URL and filename via POST /file/download (correct Quark API).
-        Returns (download_url, filename)."""
-        resp = self._request("POST", "file/download", json={"fids": [file_id]},
-                             params={"sys": "win32", "ve": "2.5.56"})
-        data = resp.get("data", [])
-        if not data:
-            raise ValueError(f"No download info for file {file_id}")
-        info = data[0]
-        url = info.get("download_url")
-        if not url:
-            raise ValueError(f"No download URL for file {file_id}: {info}")
-        return url, info.get("file_name", "unknown")
+        """Get download URL and filename via POST /file/download.
+
+        Makes a direct request (not via _request) to avoid adding __t/__dt
+        params that the download endpoint rejects. Retries with a Quark-
+        specific UA if the server returns code 23018.
+        """
+        url = f"{BASE_URL}/file/download"
+        body = {"fids": [file_id]}
+        params = {
+            "pr": "ucpro",
+            "fr": "pc",
+            "sys": "win32",
+            "ve": "2.5.56",
+            "ut": "",
+            "guid": "",
+        }
+
+        uas = [UA_MODERN, UA_QUARK_DESKTOP]
+        last_error = None
+
+        for ua in uas:
+            headers = {
+                "User-Agent": ua,
+                "Accept": "application/json, text/plain, */*",
+                "Content-Type": "application/json",
+                "Accept-Language": "zh-CN",
+                "Origin": "https://pan.quark.cn",
+                "Referer": "https://pan.quark.cn/",
+                "Cookie": self.cookie.to_header(),
+            }
+            resp = self.client.post(url, json=body, params=params, headers=headers)
+            if resp.status_code == 401:
+                raise PermissionError("Quark cookie expired — re-run quark_setup.py on server")
+            data = resp.json()
+            if data.get("code") == 23018:
+                last_error = f"UA rejected (code 23018): {data.get('message', '')}"
+                logger.warning(last_error)
+                continue
+            resp.raise_for_status()
+            items = data.get("data", [])
+            if not items:
+                raise ValueError(f"No download info for file {file_id}: {data}")
+            info = items[0]
+            dl_url = info.get("download_url")
+            if not dl_url:
+                raise ValueError(f"No download URL for file {file_id}: {info}")
+            return dl_url, info.get("file_name", "unknown")
+
+        raise RuntimeError(last_error or f"Download failed for file {file_id}")
 
     def resolve_path(self, path: str) -> str:
         if path in ("", "/"):
