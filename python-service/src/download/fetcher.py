@@ -15,28 +15,32 @@ UA_POOL = [
 
 def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3,
                   cookie_dict: dict[str, str] | None = None) -> str:
-    """Download a file with retry and backoff. Returns local path.
-
-    cookie_dict: optional {name: value} dict — set as client cookies (not raw header)
-                 so httpx handles domain/path matching correctly.
-    """
+    """Download a file with retry and backoff. Returns local path."""
     dest_path = Path(dest)
     ua = random.choice(UA_POOL)
-    base_headers = {
-        "user-agent": ua,
-        "origin": "https://pan.quark.cn",
-        "referer": "https://pan.quark.cn/",
-    }
 
     last_error = None
     for attempt in range(max_retries):
+        # Try different header strategies across attempts
+        header_sets = [
+            # Strategy 1: bare minimum — UA only (auth is in URL params)
+            {"user-agent": ua},
+            # Strategy 2: with referer
+            {"user-agent": ua, "referer": "https://pan.quark.cn/"},
+            # Strategy 3: full browser-like headers + cookies
+            {
+                "user-agent": ua,
+                "referer": "https://pan.quark.cn/",
+                "origin": "https://pan.quark.cn",
+                "accept": "*/*",
+                "accept-language": "zh-CN,zh;q=0.9",
+            },
+        ]
+        headers = header_sets[min(attempt, len(header_sets) - 1)]
+
         try:
-            client = httpx.Client(
-                timeout=300.0,
-                follow_redirects=True,
-                headers=base_headers,
-            )
-            if cookie_dict:
+            client = httpx.Client(timeout=300.0, follow_redirects=True, headers=headers)
+            if cookie_dict and attempt >= 2:
                 for name, value in cookie_dict.items():
                     client.cookies.set(name, value, domain=".quark.cn")
 
@@ -54,7 +58,7 @@ def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3,
             return str(dest_path)
         except Exception as e:
             last_error = e
-            logger.warning(f"Download attempt {attempt + 1} failed: {e}")
+            logger.warning(f"Download attempt {attempt + 1} (strategy {min(attempt, 2) + 1}) failed: {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt + random.uniform(0, 2))
 
