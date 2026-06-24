@@ -3,30 +3,44 @@ import random
 import time
 from pathlib import Path
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
-def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3, cookies: str = "") -> str:
-    """Download a file with retry and backoff. Returns local path."""
-    import httpx
+UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.56 Chrome/100.0.4896.160 Electron/18.3.5.12-a038f7b798 Safari/537.36 Channel/pckk_other_ch",
+]
 
+
+def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3,
+                  cookie_dict: dict[str, str] | None = None) -> str:
+    """Download a file with retry and backoff. Returns local path.
+
+    cookie_dict: optional {name: value} dict — set as client cookies (not raw header)
+                 so httpx handles domain/path matching correctly.
+    """
     dest_path = Path(dest)
-    ua_pool = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    ]
+    ua = random.choice(UA_POOL)
+    base_headers = {
+        "user-agent": ua,
+        "origin": "https://pan.quark.cn",
+        "referer": "https://pan.quark.cn/",
+    }
 
     last_error = None
     for attempt in range(max_retries):
         try:
-            headers = {
-                "User-Agent": random.choice(ua_pool),
-                "Referer": "https://pan.quark.cn/",
-                "Origin": "https://pan.quark.cn",
-            }
-            if cookies:
-                headers["Cookie"] = cookies
-            with httpx.stream("GET", url, headers=headers, timeout=300.0,
-                              follow_redirects=True) as resp:
+            client = httpx.Client(
+                timeout=300.0,
+                follow_redirects=True,
+                headers=base_headers,
+            )
+            if cookie_dict:
+                for name, value in cookie_dict.items():
+                    client.cookies.set(name, value, domain=".quark.cn")
+
+            with client.stream("GET", url) as resp:
                 resp.raise_for_status()
                 total = int(resp.headers.get("content-length", 0))
                 downloaded = 0
@@ -36,6 +50,7 @@ def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3, c
                         downloaded += len(chunk)
                         if total > 0 and progress_cb:
                             progress_cb(int(downloaded * 100 / total))
+            client.close()
             return str(dest_path)
         except Exception as e:
             last_error = e
