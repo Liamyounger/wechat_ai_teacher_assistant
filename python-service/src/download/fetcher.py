@@ -14,10 +14,12 @@ UA_POOL = [
 
 
 def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3,
-                  cookie_header: str = "") -> str:
+                  http_client: httpx.Client | None = None) -> str:
     """Download a file with retry and backoff. Returns local path.
 
-    Mirrors QuarkPanTool's approach: cookie as raw header string, httpx.Client.stream().
+    http_client: if provided, reuse this httpx.Client (preserves session cookies
+                 needed for Quark CDN callback validation). If None, creates a
+                 new client per attempt.
     """
     dest_path = Path(dest)
     last_error = None
@@ -26,30 +28,33 @@ def download_file(url: str, dest: str, progress_cb=None, max_retries: int = 3,
         ua = random.choice(UA_POOL)
         headers = {
             "user-agent": ua,
-            "origin": "https://pan.quark.cn",
             "referer": "https://pan.quark.cn/",
+            "origin": "https://pan.quark.cn",
         }
-        if cookie_header:
-            headers["cookie"] = cookie_header
 
         try:
-            client = httpx.Client(timeout=300.0, follow_redirects=True)
-            with client.stream("GET", url, headers=headers) as resp:
-                resp.raise_for_status()
-                total = int(resp.headers.get("content-length", 0))
+            if http_client is not None:
+                resp = http_client.stream("GET", url, headers=headers)
+            else:
+                client = httpx.Client(timeout=300.0, follow_redirects=True)
+                resp = client.stream("GET", url, headers=headers)
+
+            with resp as r:
+                r.raise_for_status()
+                total = int(r.headers.get("content-length", 0))
                 downloaded = 0
                 with open(dest_path, "wb") as f:
-                    for chunk in resp.iter_bytes(chunk_size=1024 * 1024):
+                    for chunk in r.iter_bytes(chunk_size=1024 * 1024):
                         f.write(chunk)
                         downloaded += len(chunk)
                         if total > 0 and progress_cb:
                             progress_cb(int(downloaded * 100 / total))
-            client.close()
             return str(dest_path)
         except Exception as e:
             last_error = e
             logger.warning(f"Download attempt {attempt + 1} failed: {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt + random.uniform(0, 2))
+            http_client = None  # fall back to fresh client on retry
 
     raise last_error or RuntimeError("Download failed")

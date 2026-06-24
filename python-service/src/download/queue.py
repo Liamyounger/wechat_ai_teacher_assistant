@@ -105,9 +105,12 @@ class DownloadQueue:
                 def progress_cb(pct: int):
                     task.progress = pct
 
+                # Reuse the QuarkClient's httpx session so the CDN's OSS callback
+                # validation sees the same session cookies used to obtain the URL.
+                dl_client = api.client if not task.share_id else share_client.client
                 local = download_file(download_url, str(dest_dir / filename),
                                       progress_cb=progress_cb,
-                                      cookie_header=cm.to_header())
+                                      http_client=dl_client)
                 task.local_path = local
                 task.progress = 100
 
